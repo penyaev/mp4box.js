@@ -211,7 +211,7 @@ ISOFile.prototype.checkBuffer = function (ab) {
 
 /* Processes a new ArrayBuffer (with a fileStart property)
    Returns the next expected file position, or undefined if not ready to parse */
-ISOFile.prototype.appendBuffer = function(ab, last) {
+ISOFile.prototype.appendBuffer = function(ab) {
 	var nextFileStart;
 	if (!this.checkBuffer(ab)) {
 		return;
@@ -246,7 +246,7 @@ ISOFile.prototype.appendBuffer = function(ab, last) {
 		}
 
 		/* See if any sample extraction or segment creation needs to be done with the available samples */
-		this.processSamples(last);
+		this.processSamples();
 
 		/* Inform about the best range to fetch next */
 		if (this.nextSeekPosition) {
@@ -413,7 +413,7 @@ ISOFile.prototype.getInfo = function() {
 	return movie;
 }
 
-ISOFile.prototype.processSamples = function(last) {
+ISOFile.prototype.processSamples = function() {
 	var i;
 	var trak;
 	if (!this.sampleProcessingStarted) return;
@@ -439,11 +439,11 @@ ISOFile.prototype.processSamples = function(last) {
 				}
 				/* A fragment is created by sample, but the segment is the accumulation in the buffer of these fragments.
 				   It is flushed only as requested by the application (nb_samples) to avoid too many callbacks */
-				if (trak.nextSample % fragTrak.nb_samples === 0 || (last && trak.nextSample >= trak.samples.length)) {
+				if (trak.nextSample % fragTrak.nb_samples === 0 || (trak.nextSample >= trak.samples.length)) {
 					Log.info("ISOFile", "Sending fragmented data on track #"+fragTrak.id+" for samples ["+Math.max(0,trak.nextSample-fragTrak.nb_samples)+","+(trak.nextSample-1)+"]");
 					Log.info("ISOFile", "Sample data size in memory: "+this.getAllocatedSampleDataSize());
 					if (this.onSegment) {
-						this.onSegment(fragTrak.id, fragTrak.user, fragTrak.segmentStream.buffer, trak.nextSample, (last && trak.nextSample >= trak.samples.length));
+						this.onSegment(fragTrak.id, fragTrak.user, fragTrak.segmentStream.buffer, trak.nextSample, (trak.nextSample >= trak.samples.length));
 					}
 					/* force the creation of a new buffer */
 					fragTrak.segmentStream = null;
@@ -536,7 +536,7 @@ ISOFile.prototype.releaseUsedSamples = function (id, sampleNum) {
 
 ISOFile.prototype.start = function() {
 	this.sampleProcessingStarted = true;
-	this.processSamples(false);
+	this.processSamples();
 }
 
 ISOFile.prototype.stop = function() {
@@ -547,7 +547,7 @@ ISOFile.prototype.stop = function() {
 ISOFile.prototype.flush = function() {
 	Log.info("ISOFile", "Flushing remaining samples");
 	this.updateSampleLists();
-	this.processSamples(true);
+	this.processSamples();
 	this.stream.cleanBuffers();
 	this.stream.logBufferLevel(true);
 }
